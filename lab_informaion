@@ -50,7 +50,6 @@ def gettime(soup,tag):
             
 #对返回原始数据经行清理
 #传入rsponse对象
-#这个函数可以将数据清理为列表，注意为需要转化为6列的表
 def dataclean(r):
     import numpy as np
     import pandas as pd
