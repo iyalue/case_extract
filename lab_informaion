@@ -1,0 +1,87 @@
+#导入start_manipulation函数
+import 医院数据爬取 as pq
+import requests
+from bs4 import BeautifulSoup
+import numpy as np
+import pandas as pd
+
+#ipid传字符串
+#返回检查结果原始数据
+def showLabreportList(cookie,ipid):
+    url = "http://192.168.8.90:9080/htweb/do?module=lab&action=LabReport&method=showLabReportList&isread=1&ipid="+ipid
+    headers = {"Accept":"*/*", \
+              "Content-Type":"application/x-www-form-urlencoded;", \
+              "Referer":"http://192.168.8.90:9080/htweb/do?module=lab&action=LabReport&method=labReportMain&isRefresh=Y&winName=labReportMain&ipid=0003087379_0002&isread=1&ipAdmissionTime=20210225153900&loginByIE=N&printFlag=", \
+              "Accept-Language":"zh-cn", \
+              "Accept-Encoding":"gzip, deflate", \
+              "User-Agent":"Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E; .NET CLR 2.0.50727; .NET CLR 3.0.30729; .NET CLR 3.5.30729)", \
+              "Host":"192.168.8.90:9080", \
+              "Content-Length":"0", \
+              "Connection":"Keep-Alive", \
+              "Pragma":"no-cache", \
+              "Cookie":cookie
+              }
+    r = requests.post(url,headers = headers)
+    return r
+
+#找到二级（仅限二级）目录下的文字，返回数据框
+def concat(soup,tag):
+    result = pd.DataFrame()
+    for item in soup:
+        dic = dict()
+        x = item.find_all(tag)
+        i=1
+        for a in x:
+            dic[i] = a.text
+            i+=1
+        result = result.append(dic,ignore_index = True)
+    return result
+#获得检查结果的时间，返回时间的列表
+def gettime(soup,tag):
+    list = []
+    for item in soup:
+        x = item.find_all(tag)
+        temp = []
+        for a in x:
+            b = a.text
+            temp.append(b)
+        list.append(temp[0])
+    return list
+            
+#对返回原始数据经行清理
+#传入rsponse对象
+#这个函数可以将数据清理为列表，注意为需要转化为6列的表
+def dataclean(r):
+    import numpy as np
+    import pandas as pd
+    result = pd.DataFrame()
+    soup = BeautifulSoup(r.text,'html.parser')
+    tbody = soup.find_all('tbody')
+    tittle = soup.find_all('thead')
+    time = gettime(tittle,'th')
+    j = -1
+    for item in tbody:
+        a = item.find_all('tr')
+        del a[0]
+        del a[-1]
+        j= j+1
+        for body in a:
+            dic = dict()
+            x = body.find_all('td')
+            i=1
+            dic[0] = time[j]
+            for a in x:
+                dic[i] = a.text
+                i+=1
+            result = result.append(dic,ignore_index = True)
+    return result
+
+
+
+def save_reportList(result):
+    result = np.array(result)
+    if (len(result)%6!=0):
+        print("注意检查数据！！！\n")
+        result = result[0:len(result)-len(result)%6]
+    result = result.reshape(int(len(result)/6),6)
+    pd.DataFrame(result).to_csv('result.csv')
